@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MagSwitch: High-Relay Electromagnetic Actuator Coil Transit Sentry</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            space: {
+              950: '#03050a',
+              900: '#05070d',
+              850: '#080c14',
+              800: '#0d131f'
+            },
+            cyan: {
+              400: '#22d3ee',
+              500: '#06b6d4',
+              glow: 'rgba(6, 182, 212, 0.45)'
+            },
+            violet: {
+              500: '#8b5cf6',
+              glow: 'rgba(139, 92, 246, 0.45)'
+            },
+            rose: {
+              500: '#f43f5e',
+              glow: 'rgba(244, 63, 94, 0.45)'
+            },
+            amber: {
+              400: '#fbbf24',
+              500: '#f59e0b'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- MathJax Configuration (Bulletproof MathJax v3) -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <!-- Chart.js & Lucide Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      background-color: #03050a;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .formula-box {
+      background: #05070d;
+      border: 1px solid #1e293b;
+      padding: 0.85rem 1.25rem;
+      border-radius: 0.5rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+    }
+    .hud-card {
+      background: rgba(13, 19, 31, 0.7);
+      border: 1px solid rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(12px);
+    }
+    .hud-card:hover {
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #05070d;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #38bdf8;
+    }
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 280px;
+      background: radial-gradient(circle at 50% 50%, #0d1424 0%, #03050a 100%);
+      border: 1px solid #1e293b;
+      border-radius: 0.75rem;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-space-950 text-slate-100 antialiased selection:bg-cyan-500 selection:text-black">
+
+  <!-- Top Navigation & Global Header -->
+  <header class="border-b border-slate-800 bg-space-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+          <i data-lucide="zap" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs uppercase tracking-widest font-mono-code font-bold text-cyan-400">NASA SBIR/STTR Subtopic Z1.04</span>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono-code font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">TRL 3 → 5</span>
+          </div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            MagSwitch <span class="text-xs font-normal text-slate-400 font-mono-code">v2.4-SENTRY</span>
+            <span class="text-xs text-slate-500 font-normal hidden sm:inline">| Coil Transit Sentry & Pulse Disrupter</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center space-x-1 sm:space-x-2 bg-space-950 p-1.5 rounded-xl border border-slate-800/80">
+        <button id="tabBtnSim" onclick="switchTab('sim')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+          <span>Live HUD</span>
+        </button>
+        <button id="tabBtnPhysics" onclick="switchTab('physics')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-400 hover:text-slate-200 transition-all flex items-center space-x-2 border border-transparent">
+          <i data-lucide="atom" class="w-4 h-4"></i>
+          <span>Physics & Model</span>
+        </button>
+        <button id="tabBtnProposal" onclick="switchTab('proposal')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-400 hover:text-slate-200 transition-all flex items-center space-x-2 border border-transparent">
+          <i data-lucide="file-text" class="w-4 h-4"></i>
+          <span>NASA Proposal</span>
+        </button>
+        <button id="tabBtnARR" onclick="switchTab('arr')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-400 hover:text-slate-200 transition-all flex items-center space-x-2 border border-transparent">
+          <i data-lucide="trending-up" class="w-4 h-4"></i>
+          <span>Commercial ARR</span>
+        </button>
+      </nav>
+
+      <!-- Live Heartbeat / Fast Telemetry Stat -->
+      <div class="hidden xl:flex items-center space-x-4 border-l border-slate-800 pl-4 text-xs font-mono-code">
+        <div>
+          <span class="text-slate-500 block text-[10px]">LOOP LATENCY</span>
+          <span class="text-cyan-400 font-bold tracking-tight">1.82 &mu;s</span>
+        </div>
+        <div>
+          <span class="text-slate-500 block text-[10px]">PULSER BUS</span>
+          <span class="text-emerald-400 font-bold tracking-tight" id="headerPulserV">450 V</span>
+        </div>
+        <div class="flex items-center gap-1.5 bg-emerald-950/40 border border-emerald-500/30 px-2 py-1 rounded text-emerald-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span>SENTRY ACTIVE</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Containers -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: LIVE SIMULATION & TELEMETRY HUD      -->
+    <!-- ========================================== -->
+    <div id="viewSim" class="space-y-6">
+      
+      <!-- Top Alert Ribbon / Status Banner -->
+      <div id="statusBanner" class="p-3.5 rounded-xl border border-slate-800 bg-space-900 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-code">
+        <div class="flex items-center space-x-3">
+          <div id="statusIndicatorCircle" class="w-3 h-3 rounded-full bg-emerald-500"></div>
+          <div>
+            <span class="text-slate-400">STATE OBSERVER:</span>
+            <span id="systemStateText" class="text-emerald-400 font-bold ml-1.5 tracking-wider">NOMINAL_ARMED</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-4 text-slate-400">
+          <div>$F_{\text{contact}}$: <span id="telemetryForce" class="text-cyan-400 font-semibold">42.0 N</span></div>
+          <div>$L_{\text{coil}}$: <span id="telemetryInductance" class="text-violet-400 font-semibold">120.0 mH</span></div>
+          <div>Gap $x$: <span id="telemetryGap" class="text-amber-400 font-semibold">0.00 mm</span></div>
+          <div>$\Delta t_{\text{transit}}$: <span id="telemetryTransitTime" class="text-slate-200 font-semibold">0.0 &mu;s</span></div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-[10px] text-slate-500">AUTONOMOUS SENTRY:</span>
+          <button id="toggleAutonomousBtn" onclick="toggleAutonomous()" class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold">
+            ENABLED
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Canvas & Visual Relaying Chamber -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left 7 Cols: High Relaying Actuator Cross-Section Animation -->
+        <div class="lg:col-span-7 flex flex-col space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+              <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+              High-Current Actuator Mechanical Cross-Section &amp; Flux Chamber
+            </h2>
+            <span class="text-xs font-mono-code text-slate-400">Solar Array Line: 200A / 120VDC</span>
+          </div>
+          
+          <div class="canvas-container">
+            <canvas id="actuatorCanvas" class="w-full h-full block"></canvas>
+            
+            <!-- Canvas Overlay Badges -->
+            <div class="absolute top-2 left-3 flex flex-wrap gap-2 pointer-events-none text-[10px] font-mono-code">
+              <div class="bg-black/60 backdrop-blur px-2 py-0.5 rounded border border-slate-700 text-slate-300">
+                Opening Spring: $k = 18.5 \text{ kN/m}$
+              </div>
+              <div id="weldBridgeBadge" class="hidden bg-rose-950/80 backdrop-blur px-2 py-0.5 rounded border border-rose-500 text-rose-300 animate-pulse">
+                &bull; MOLTEN METAL BRIDGE DETECTED
+              </div>
+              <div id="pulseFiredBadge" class="hidden bg-amber-950/80 backdrop-blur px-2 py-0.5 rounded border border-amber-500 text-amber-300 font-bold">
+                ⚡ AUX DISCHARGE PULSE: 1.2 kV / 450A
+              </div>
+            </div>
+
+            <div class="absolute bottom-2 right-3 pointer-events-none text-[10px] font-mono-code text-slate-400 bg-black/60 px-2 py-0.5 rounded border border-slate-800">
+              Direct Gap Sensor ($x$): <span id="canvasGapReadout" class="text-white">0.00 mm</span>
+            </div>
+          </div>
+
+          <!-- Controls for Actuation & Fault Injection -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono-code text-xs">
+            <button onclick="triggerContactOpen()" class="p-2.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 flex flex-col items-center justify-center gap-1 transition shadow-lg shadow-cyan-950/50">
+              <span class="font-bold flex items-center gap-1"><i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> COMMAND TRIP</span>
+              <span class="text-[9px] text-slate-400">Disconnect Solar Bus</span>
+            </button>
+
+            <button onclick="injectWeldFault()" class="p-2.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 flex flex-col items-center justify-center gap-1 transition">
+              <span class="font-bold flex items-center gap-1"><i data-lucide="flame" class="w-3.5 h-3.5"></i> INJECT MICRO-WELD</span>
+              <span class="text-[9px] text-slate-400">Stall Contact Opening</span>
+            </button>
+
+            <button onclick="fireAuxPulserManual()" class="p-2.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 flex flex-col items-center justify-center gap-1 transition">
+              <span class="font-bold flex items-center gap-1"><i data-lucide="zap" class="w-3.5 h-3.5"></i> FIRE PULSER ($C_{\text{aux}}$)</span>
+              <span class="text-[9px] text-slate-400">Counter-EMF Pulse</span>
+            </button>
+
+            <button onclick="resetSimulation()" class="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex flex-col items-center justify-center gap-1 transition">
+              <span class="font-bold flex items-center gap-1"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> RESET HARDWARE</span>
+              <span class="text-[9px] text-slate-400">Engage Nominal Hold</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right 5 Cols: Primary (F, L) Phase-Space Trajectory Engine -->
+        <div class="lg:col-span-5 flex flex-col space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+              <i data-lucide="crosshair" class="w-4 h-4 text-violet-400"></i>
+              Primary Phase-Space: Force ($F$) vs. Inductance ($L$)
+            </h2>
+            <span class="text-xs font-mono-code text-cyan-400">$(F, L)$ Sentry Sieve</span>
+          </div>
+
+          <div class="hud-card p-3 rounded-xl flex-1 flex flex-col justify-between">
+            <div class="relative h-64 w-full">
+              <canvas id="phaseSpaceChart"></canvas>
+            </div>
+            <div class="mt-2 text-[11px] font-mono-code text-slate-400 bg-space-950 p-2.5 rounded border border-slate-800 space-y-1">
+              <div class="flex justify-between">
+                <span>Phase Gradient $dL/dF$:</span>
+                <span id="gradReadout" class="text-cyan-300 font-bold">+2.34 mH/N</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Weld Stagnation Metric $\Psi_{\text{weld}}$:</span>
+                <span id="weldMetricReadout" class="text-emerald-400 font-bold">0.02 (Nominal)</span>
+              </div>
+              <div class="text-[10px] text-slate-500 italic">
+                Nominal corridor bounds $(F \to 0, L \to L_{\text{open}})$. Trajectory entering red boundary indicates molten micro-bridge stall.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary Telemetry Plots & Dynamic Controls -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <!-- Plot A: Time-Series Inductance L(t) & Command Envelope -->
+        <div class="hud-card p-4 rounded-xl space-y-2">
+          <div class="flex items-center justify-between text-xs font-mono-code">
+            <span class="text-slate-300 font-semibold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-violet-400"></span> Coil Inductance $L(t)$
+            </span>
+            <span class="text-violet-400" id="liveLValue">120.0 mH</span>
+          </div>
+          <div class="h-36 w-full">
+            <canvas id="timeSeriesLChart"></canvas>
+          </div>
+          <p class="text-[10px] text-slate-500 font-mono-code">Tracks sub-millisecond inductive collapse upon opening solenoid de-energization.</p>
+        </div>
+
+        <!-- Plot B: Time-Series Force F(t) & Auxiliary Pulse Energy -->
+        <div class="hud-card p-4 rounded-xl space-y-2">
+          <div class="flex items-center justify-between text-xs font-mono-code">
+            <span class="text-slate-300 font-semibold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span> Contact Force $F(t)$ &amp; Pulse
+            </span>
+            <span class="text-cyan-400" id="liveFValue">42.0 N</span>
+          </div>
+          <div class="h-36 w-full">
+            <canvas id="timeSeriesFChart"></canvas>
+          </div>
+          <p class="text-[10px] text-slate-500 font-mono-code">Aux pulse fires inverse flux $\Phi_{\text{aux}}$ when $dL/dt$ stagnates while $F \to 0$.</p>
+        </div>
+
+        <!-- Dynamic Control Sliders & Hardware Settings -->
+        <div class="hud-card p-4 rounded-xl space-y-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs font-semibold text-slate-200 mb-2">
+              <span class="flex items-center gap-1.5"><i data-lucide="sliders" class="w-3.5 h-3.5 text-cyan-400"></i> Disconnector Parameters</span>
+              <span class="text-[10px] font-mono-code text-cyan-400">28V/120V Bus</span>
+            </div>
+
+            <!-- Slider 1: Solar Array Bus Current -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-[11px] font-mono-code">
+                <span class="text-slate-400">Bus Current ($I_{\text{bus}}$):</span>
+                <span id="sliderCurrentVal" class="text-amber-400 font-bold">180 A</span>
+              </div>
+              <input type="range" id="sliderCurrent" min="20" max="350" step="10" value="180" oninput="updateSimulationParams()" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400">
+              <div class="flex justify-between text-[9px] text-slate-500 font-mono-code">
+                <span>20A (Payload)</span>
+                <span>350A (Heavy Solar Deployment)</span>
+              </div>
+            </div>
+
+            <!-- Slider 2: Opening Spring Pre-load -->
+            <div class="space-y-1 mt-3">
+              <div class="flex justify-between text-[11px] font-mono-code">
+                <span class="text-slate-400">Spring Force ($F_{\text{spring}}$):</span>
+                <span id="sliderSpringVal" class="text-cyan-400 font-bold">45 N</span>
+              </div>
+              <input type="range" id="sliderSpring" min="15" max="80" step="5" value="45" oninput="updateSimulationParams()" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+              <div class="flex justify-between text-[9px] text-slate-500 font-mono-code">
+                <span>15 N (Fatigued)</span>
+                <span>80 N (High-rate Spec)</span>
+              </div>
+            </div>
+
+            <!-- Slider 3: Pulse Capacitor Sizing -->
+            <div class="space-y-1 mt-3">
+              <div class="flex justify-between text-[11px] font-mono-code">
+                <span class="text-slate-400">Aux Discharge Cap ($C_{\text{aux}}$):</span>
+                <span id="sliderCapVal" class="text-violet-400 font-bold">180 &mu;F / 450V</span>
+              </div>
+              <input type="range" id="sliderCap" min="50" max="400" step="10" value="180" oninput="updateSimulationParams()" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-400">
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] font-mono-code">
+            <span class="text-slate-400">Welding Probability ($\mathcal{P}_{\text{weld}}$):</span>
+            <span id="weldProbReadout" class="text-rose-400 font-bold">14.2%</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: CORE PHYSICS & MATHEMATICAL MODEL   -->
+    <!-- ========================================== -->
+    <div id="viewPhysics" class="hidden space-y-6">
+      <div class="border-b border-slate-800 pb-4">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+          <i data-lucide="atom" class="w-5 h-5 text-cyan-400"></i>
+          Electromechanical &amp; Magnetodynamic Core Formulation
+        </h2>
+        <p class="text-sm text-slate-400 mt-1">
+          Rigorous mathematical description of dynamic coil inductance variation during contact separation, molten bridge surface tension, and electromagnetic weld-severance pulses.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Physics Card 1: Dynamic Coil Inductance & Air-Gap Expansion -->
+        <div class="hud-card p-5 rounded-xl space-y-3">
+          <div class="flex items-center space-x-2 text-cyan-400 font-semibold text-sm">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+            <span>1. Dynamic Coil Inductance &amp; Reluctance Inversion</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            In an electromechanical solenoid relay, the total coil inductance $L(x)$ is a direct reciprocal function of the magnetic circuit reluctance $\mathcal{R}(x)$. As the armature displaces across physical gap $x(t)$, magnetic flux path length expands:
+          </p>
+          <div class="formula-box">
+            $$L(x) = \frac{N^2}{\mathcal{R}_{\text{core}} + \mathcal{R}_{\text{gap}}(x)} = \frac{\mu_0 A_{\text{pole}} N^2}{2 x(t) + \frac{\mu_0}{\mu_r} l_{\text{core}}}$$
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            The mechanical opening equation relates opening spring constant $k_s$, damping coefficient $c$, and residual magnetic holding force $F_{\text{mag}}$:
+          </p>
+          <div class="formula-box">
+            $$m \frac{d^2 x}{dt^2} + c \frac{dx}{dt} + k_s (x_0 - x) = -F_{\text{mag}}(i, x) = -\frac{1}{2} i_{\text{coil}}^2 \frac{\partial L}{\partial x}$$
+          </div>
+          <p class="text-[11px] text-slate-400">
+            During commanded contact separation, $i_{\text{coil}} \to 0$, causing $x(t)$ to rapidly expand from $0 \to x_{\text{max}}$, collapsing $L(x)$ from its closed peak $L_{\text{closed}}$ to open floor $L_{\text{open}}$.
+          </p>
+        </div>
+
+        <!-- Physics Card 2: Micro-Welding & Molten Bridge Physics -->
+        <div class="hud-card p-5 rounded-xl space-y-3">
+          <div class="flex items-center space-x-2 text-rose-400 font-semibold text-sm">
+            <i data-lucide="flame" class="w-4 h-4"></i>
+            <span>2. Holm Molten Metal Bridge &amp; Micro-Weld Formation</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            In high-current DC disconnectors (e.g., 180A–350A solar wings), as metallic contacts begin separating, the constriction resistance $R_c$ increases asymptotically according to Holm’s contact theory:
+          </p>
+          <div class="formula-box">
+            $$R_c(t) = \frac{\rho_{\text{metal}}}{2 a(t)} = \frac{\rho_{\text{metal}}}{2} \sqrt{\frac{\pi H}{F_{\text{contact}}(t)}}$$
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Joule heating concentrates intensely at microscopic asperities. When super-temperature $\theta_{\text{max}}$ exceeds the alloy melting point $T_{\text{melt}}$ (1,356 K for Ag-SnO$_2$ matrix):
+          </p>
+          <div class="formula-box">
+            $$U_c^2 = 8 \int_0^{\theta_{\text{max}}} \rho(T) \cdot \lambda(T) \, dT \quad \implies \quad F_{\text{weld}} \approx \sigma_{\text{yield}} \cdot \pi r_{\text{bridge}}^2$$
+          </div>
+          <p class="text-[11px] text-slate-400">
+            If $F_{\text{weld}} \ge F_{\text{spring}}$, armature motion stalls completely at gap $x \approx 0.02 - 0.08\text{ mm}$. The coil inductance drop ceases instantly, pinning the trajectory in the dangerous hazard zone of the $(F, L)$ phase space.
+          </p>
+        </div>
+
+        <!-- Physics Card 3: Phase-Space Diagnostic Inversion Formulation -->
+        <div class="hud-card p-5 rounded-xl space-y-3">
+          <div class="flex items-center space-x-2 text-violet-400 font-semibold text-sm">
+            <i data-lucide="crosshair" class="w-4 h-4"></i>
+            <span>3. High-Frequency $(F, L)$ State Observer Sieve</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Rather than relying on sluggish optical encoders or vulnerable Hall sensors, MagSwitch continuously senses coil back-EMF and injects a 50 kHz micro-probe carrier to calculate instantaneous $\hat{L}(t)$ and inferred mechanical force $\hat{F}(t)$:
+          </p>
+          <div class="formula-box">
+            $$v_{\text{sense}}(t) = R_{\text{coil}} i(t) + L(x)\frac{di}{dt} + i(t)\left(\frac{\partial L}{\partial x}\right)\frac{dx}{dt}$$
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            The autonomous sentry computes the weld anomaly indicator $\Psi_{\text{weld}}(t)$ defined over transit window $\Delta \tau_{\text{transit}} \in [10, 85] \, \mu\text{s}$:
+          </p>
+          <div class="formula-box">
+            $$\Psi_{\text{weld}}(t) = \int_{t_0}^{t_0+\Delta \tau} \left| \frac{dL}{dt} \right|^{-1} \cdot \Theta\left(F_{\text{command}} - F_{\text{threshold}}\right) \, dt > \Gamma_{\text{crit}}$$
+          </div>
+          <p class="text-[11px] text-slate-400">
+            Where $\Theta(\cdot)$ is the Heaviside step function. If $\Psi_{\text{weld}}$ trips threshold $\Gamma_{\text{crit}}$ within 45 microseconds of trip command, a micro-weld is unequivocally confirmed.
+          </p>
+        </div>
+
+        <!-- Physics Card 4: Aux Pulse Disrupter & Lorenzian Separation -->
+        <div class="hud-card p-5 rounded-xl space-y-3">
+          <div class="flex items-center space-x-2 text-amber-400 font-semibold text-sm">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            <span>4. Capacitive Discharge Counter-Flux Pulse Shock</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Upon confirmation of weld stall, an ultrafast solid-state thyristor dumps capacitor bank $C_{\text{aux}}$ into an auxiliary high-impulse counter-coil, imparting a localized dynamic repulsive shock force $F_{\text{pulse}}$:
+          </p>
+          <div class="formula-box">
+            $$F_{\text{pulse}}(t) = \frac{1}{2} i_{\text{pulse}}^2(t) \frac{d M_{12}}{dx} = \frac{1}{2} \left[ \frac{V_0}{\omega L} e^{-\alpha t} \sin(\omega t) \right]^2 \frac{\mu_0 N_{\text{main}} N_{\text{aux}} A}{x^2}$$
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            The resultant transient peak force ($> 320 \text{ N}$ for $12 \, \mu\text{s}$) exceeds the mechanical shear yield strength of the frozen metallic neck:
+          </p>
+          <div class="formula-box">
+            $$\int_0^{\tau_p} F_{\text{pulse}}(t) \, dt \gg \mathcal{J}_{\text{fracture}} = \sqrt{2 E \gamma_s \cdot \pi r_{\text{bridge}}^3}$$
+          </div>
+          <p class="text-[11px] text-slate-400">
+            The mechanical neck fractures brittlely without thermal damage to the primary silver-metal oxide contact pads, resuming nominal transit to full galvanic air gap clearance ($x_{\text{open}} = 3.5\text{ mm}$).
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Micro-Fabrication & Hardware Architecture Callout -->
+      <div class="hud-card p-4 rounded-xl border border-cyan-500/20 bg-space-900/60">
+        <div class="flex items-center gap-3">
+          <div class="p-2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+            <i data-lucide="cpu" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider font-mono-code">Radiation-Hardened Embedded Sentry Controller</h4>
+            <p class="text-[11px] text-slate-400 mt-0.5">
+              Targeted execution on rad-hard Vorago VA41630 (ARM Cortex-M4 with HARDRAS&trade; 300 krad TID) or Microchip RTG4 FPGA. Hardware footprint requires only 4 passive SMT diodes, dual SiC MOSFET/Thyristor pulse drivers, and a 25 mm footprint hermetic ceramic pulse-capacitor module.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: NASA SBIR/STTR PROPOSAL & HARDWARE  -->
+    <!-- ========================================== -->
+    <div id="viewProposal" class="hidden space-y-6">
+      
+      <!-- Solicitation Banner -->
+      <div class="p-5 rounded-xl border border-cyan-500/30 bg-gradient-to-r from-space-900 via-space-850 to-space-900 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono-code text-xs font-bold border border-cyan-500/30">
+              NASA SBIR/STTR 2026 Phase I
+            </span>
+            <span class="text-slate-400 text-xs font-mono-code">Topic: Fault-Tolerant Power Routing</span>
+          </div>
+          <h2 class="text-lg font-bold text-white mt-1">
+            Autonomous $(F, L)$ Sentry Sieve for High-Relay Coil Micro-Weld Mitigation
+          </h2>
+          <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+            Contract Opportunity for Lunar Surface Gateway, Artemis High-Voltage Solar Electric Propulsion (SEP), and Mars Surface Fission Power Distribution Systems.
+          </p>
+        </div>
+        <div class="text-right flex md:flex-col justify-between items-end border-t md:border-t-0 border-slate-800 pt-3 md:pt-0">
+          <span class="text-xs text-slate-400 font-mono-code">Total Phase I Budget</span>
+          <span class="text-2xl font-bold font-mono-code text-cyan-400">$225,000</span>
+          <span class="text-[10px] text-emerald-400 font-mono-code">Period of Performance: 6 Months</span>
+        </div>
+      </div>
+
+      <!-- Partner Allocation & STTR Breakdown -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <div class="hud-card p-5 rounded-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300 font-mono-code">PRIME CONTRACTOR (70%)</span>
+            <span class="text-xs text-cyan-400 font-mono-code font-bold">$157,500</span>
+          </div>
+          <h3 class="text-sm font-bold text-white">Deep-Tech Dynamic Systems Inc.</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Leading real-time digital signal processing, sensor-free $(F, L)$ observer algorithms, embedded SiC pulser gate circuitry, and system flight avionics packaging.
+          </p>
+          <ul class="text-[11px] text-slate-400 space-y-1 font-mono-code pt-1">
+            <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-cyan-400"></i> Algorithms &amp; C code firmware</li>
+            <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-cyan-400"></i> Pulse trigger hardware driver</li>
+            <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-cyan-400"></i> Radiation hardening &amp; qualification</li>
+          </ul>
+        </div>
+
+        <div class="hud-card p-5 rounded-xl space-y-3 border-cyan-500/30 bg-space-900/60">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-cyan-300 font-mono-code">STTR RESEARCH PARTNER (30.0%)</span>
+            <span class="text-xs text-cyan-400 font-mono-code font-bold">$67,500</span>
+          </div>
+          <h3 class="text-sm font-bold text-white">University of Central Florida (UCF)</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Center for Advanced Turbomachinery and Energy Research (CATER) &amp; Advanced Materials Processing and Analysis Center (AMPAC).
+          </p>
+          <ul class="text-[11px] text-slate-400 space-y-1 font-mono-code pt-1">
+            <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-cyan-400"></i> Cryo-vacuum chamber testing</li>
+            <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-cyan-400"></i> High-speed laser vibrometer gap tracking</li>
+            <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-cyan-400"></i> Contact metallurgy &amp; weld shear lab</li>
+          </ul>
+        </div>
+
+        <div class="hud-card p-5 rounded-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300 font-mono-code">PHASE II EXPANSION</span>
+            <span class="text-xs text-emerald-400 font-mono-code font-bold">$850k - $1.2M</span>
+          </div>
+          <h3 class="text-sm font-bold text-white">Full Spaceflight TRL 6 Prototype</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            24-month follow-on effort integrating space-qualified hermetic vacuum relays for direct thermal-vacuum flight testing with NASA Glenn &amp; Marshall Space Flight Centers.
+          </p>
+          <div class="bg-space-950 p-2 rounded text-[10px] font-mono-code text-slate-400 border border-slate-800">
+            Targeting 10,000 fault-free cycles under 300A DC arc-break conditions without contact welding degradation.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Phase I 6-Month Work Breakdown Milestones -->
+      <div class="hud-card p-5 rounded-xl space-y-4">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+          Phase I Technical Work Breakdown &amp; Deliverables Schedule (Months 1 – 6)
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1 font-mono-code text-xs">
+          
+          <div class="p-3 rounded-lg bg-space-950 border border-slate-800 space-y-1.5">
+            <div class="flex justify-between items-center text-[10px]">
+              <span class="text-cyan-400 font-bold">MILESTONE 1</span>
+              <span class="text-slate-500">M1 - M2</span>
+            </div>
+            <div class="font-bold text-white text-xs">Electromechanical Modeling</div>
+            <p class="text-[11px] text-slate-400 font-sans">
+              Develop coupled Maxwell-reluctance FEA model and dynamic $(F, L)$ phase-space corridor for 200A/120V relay contacts.
+            </p>
+            <div class="text-[10px] text-slate-500 border-t border-slate-800/80 pt-1">Deliverable: Validated FEA &amp; MATLAB sim.</div>
+          </div>
+
+          <div class="p-3 rounded-lg bg-space-950 border border-slate-800 space-y-1.5">
+            <div class="flex justify-between items-center text-[10px]">
+              <span class="text-cyan-400 font-bold">MILESTONE 2</span>
+              <span class="text-slate-500">M2 - M3</span>
+            </div>
+            <div class="font-bold text-white text-xs">Sentry Inversion Firmware</div>
+            <p class="text-[11px] text-slate-400 font-sans">
+              Code real-time 50 kHz inductance extraction algorithm on DSP testbench with sub-5 microsecond detection latency.
+            </p>
+            <div class="text-[10px] text-slate-500 border-t border-slate-800/80 pt-1">Deliverable: Embedded Sentry firmware.</div>
+          </div>
+
+          <div class="p-3 rounded-lg bg-space-950 border border-slate-800 space-y-1.5">
+            <div class="flex justify-between items-center text-[10px]">
+              <span class="text-cyan-400 font-bold">MILESTONE 3</span>
+              <span class="text-slate-500">M4 - M5</span>
+            </div>
+            <div class="font-bold text-white text-xs">UCF Vacuum Arc-Break Test</div>
+            <p class="text-[11px] text-slate-400 font-sans">
+              Execute 500 controlled micro-weld induction cycles inside UCF high-vacuum chamber with high-speed pyrometry.
+            </p>
+            <div class="text-[10px] text-slate-500 border-t border-slate-800/80 pt-1">Deliverable: Empirical $(F, L)$ test logs.</div>
+          </div>
+
+          <div class="p-3 rounded-lg bg-space-950 border border-slate-800 space-y-1.5">
+            <div class="flex justify-between items-center text-[10px]">
+              <span class="text-emerald-400 font-bold">MILESTONE 4</span>
+              <span class="text-slate-500">M6</span>
+            </div>
+            <div class="font-bold text-white text-xs">Phase II Flight Breadboard</div>
+            <p class="text-[11px] text-slate-400 font-sans">
+              Demonstrate 100% autonomous weld break across 50 consecutive heavy stalls with $C_{\text{aux}}$ discharge pulser.
+            </p>
+            <div class="text-[10px] text-slate-500 border-t border-slate-800/80 pt-1">Deliverable: Final Report &amp; Phase II Spec.</div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 4: COMMERCIAL & NATIONWIDE ARR         -->
+    <!-- ========================================== -->
+    <div id="viewARR" class="hidden space-y-6">
+      
+      <!-- Top Market Valuation Callout -->
+      <div class="p-5 rounded-xl border border-violet-500/30 bg-gradient-to-r from-space-900 via-space-850 to-space-900 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 font-mono-code text-xs font-bold border border-violet-500/30">
+            Civil &amp; Commercial Dual-Use Market Analysis
+          </span>
+          <h2 class="text-xl font-bold text-white mt-1">
+            Civil High-Current Switching Reliability Platform
+          </h2>
+          <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+            Software-defined sensorless electromagnetic sentry licensed via OEM micro-controller firmware to utility-scale solar arrays, EV megawatt charging depots, and data center solid-state/mechanical hybrid disconnectors.
+          </p>
+        </div>
+        <div class="text-right flex md:flex-col justify-between items-end border-t md:border-t-0 border-slate-800 pt-3 md:pt-0 font-mono-code">
+          <span class="text-xs text-slate-400">Total Mature ARR Target</span>
+          <span class="text-3xl font-extrabold text-violet-400 tracking-tight">$218.4M</span>
+          <span class="text-[11px] text-emerald-400 font-semibold">10x SaaS Multiple &rarr; $2.18B Valuation</span>
+        </div>
+      </div>
+
+      <!-- Commercial ARR Distribution Table -->
+      <div class="hud-card rounded-xl overflow-hidden border border-slate-800">
+        <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i data-lucide="table" class="w-4 h-4 text-cyan-400"></i>
+            Commercial ARR Distribution Across Civil Infrastructure Verticals
+          </h3>
+          <span class="text-xs font-mono-code text-slate-400">Domestic &amp; Tier-1 Global Markets</span>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono-code">
+            <thead class="bg-space-950 text-slate-400 border-b border-slate-800 text-[11px]">
+              <tr>
+                <th class="p-3 font-semibold">Commercial Vertical</th>
+                <th class="p-3 font-semibold">Target Hardware / Application</th>
+                <th class="p-3 font-semibold">Pricing Metric (Annual)</th>
+                <th class="p-3 font-semibold">Nationwide Asset Base</th>
+                <th class="p-3 font-semibold text-right text-cyan-400">Target ARR ($M)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-slate-300 text-[11px]">
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-bold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span> Utility-Scale Solar &amp; BESS
+                </td>
+                <td class="p-3">1,500V DC String Disconnectors &amp; Reclosers</td>
+                <td class="p-3">$140 / inverter channel / yr</td>
+                <td class="p-3">540,000 Utility Inverters</td>
+                <td class="p-3 text-right font-bold text-white">$75.6M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-bold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-cyan-400"></span> EV Megawatt Charging (MCS)
+                </td>
+                <td class="p-3">1,000A Class 8 Truck Depots &amp; Bus Pantographs</td>
+                <td class="p-3">$420 / high-power dispenser / yr</td>
+                <td class="p-3">115,000 Dispenser Plugs</td>
+                <td class="p-3 text-right font-bold text-white">$48.3M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-bold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span> AI Data Center Power Trains
+                </td>
+                <td class="p-3">800V DC Busway Automatic Transfer Switches</td>
+                <td class="p-3">$320 / rack feed relay / yr</td>
+                <td class="p-3">130,000 PDU Nodes</td>
+                <td class="p-3 text-right font-bold text-white">$41.6M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-bold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-violet-400"></span> Commercial Space LEO/GEO
+                </td>
+                <td class="p-3">Solar Wing Deployment &amp; Battery Isolation Relays</td>
+                <td class="p-3">$4,500 / orbital satellite bus / yr</td>
+                <td class="p-3">6,200 Commercial Sats</td>
+                <td class="p-3 text-right font-bold text-white">$27.9M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-bold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-rose-400"></span> Heavy Autonomous Mining
+                </td>
+                <td class="p-3">Electric Haul Truck Traction Inverter Contactors</td>
+                <td class="p-3">$1,250 / heavy haul machine / yr</td>
+                <td class="p-3">16,000 Mining Vehicles</td>
+                <td class="p-3 text-right font-bold text-white">$20.0M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 transition">
+                <td class="p-3 font-bold text-white flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-blue-400"></span> Electric Marine Propulsion
+                </td>
+                <td class="p-3">Hybrid Ferry Shore-Power Interrupters</td>
+                <td class="p-3">$1,600 / marine switchboard / yr</td>
+                <td class="p-3">3,125 Marine Ports/Ferries</td>
+                <td class="p-3 text-right font-bold text-white">$5.0M</td>
+              </tr>
+              <tr class="bg-space-950 font-bold text-white">
+                <td colspan="4" class="p-3 text-right text-slate-400 uppercase tracking-wider">Total Nationwide Commercial ARR</td>
+                <td class="p-3 text-right text-emerald-400 text-sm">$218.4M</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Industry Deep-Dive Cards (Physics & Executive Contrasts) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <!-- Deep Dive 1: Utility Solar -->
+        <div class="hud-card p-4 rounded-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-amber-400 font-mono-code uppercase">Utility-Scale Solar PV</h4>
+            <span class="text-[10px] text-slate-500 font-mono-code">$75.6M ARR</span>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-slate-400 font-mono-code">PHYSICS IN 1 SENTENCE:</div>
+            <p class="text-xs text-slate-300 mt-0.5">
+              Rapid cloud transients trigger DC disconnects while 1,500V arrays carry heavy inductive current, vaporizing silver alloy asperities into trapped weld ponds.
+            </p>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-cyan-400 font-mono-code">WHY OTHERS MISSED THIS:</div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Legacy solar operators treat stuck contactors as complete inverter hardware swap-outs ($8,500 per incident), assuming physical contact wear is unavoidable rather than actively resolvable via sub-millisecond reverse pulsed shocks.
+            </p>
+          </div>
+        </div>
+
+        <!-- Deep Dive 2: EV Megawatt Charging -->
+        <div class="hud-card p-4 rounded-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-cyan-400 font-mono-code uppercase">EV Megawatt Truck Depots</h4>
+            <span class="text-[10px] text-slate-500 font-mono-code">$48.3M ARR</span>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-slate-400 font-mono-code">PHYSICS IN 1 SENTENCE:</div>
+            <p class="text-xs text-slate-300 mt-0.5">
+              Emergency user aborts at 800kW induce catastrophic arc ignition where molten Ag-WC bridging welds dispenser relays solid within 18 microseconds.
+            </p>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-cyan-400 font-mono-code">WHY OTHERS MISSED THIS:</div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Charging manufacturers rely on oversized, 45-pound mechanical brute-force contactors that wear down springs within months, completely ignoring coil inductive back-EMF state diagnostics.
+            </p>
+          </div>
+        </div>
+
+        <!-- Deep Dive 3: AI Data Centers -->
+        <div class="hud-card p-4 rounded-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-emerald-400 font-mono-code uppercase">Hyperscale AI Centers</h4>
+            <span class="text-[10px] text-slate-500 font-mono-code">$41.6M ARR</span>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-slate-400 font-mono-code">PHYSICS IN 1 SENTENCE:</div>
+            <p class="text-xs text-slate-300 mt-0.5">
+              Sudden GPU cluster load shedding spikes 800V DC bus voltage, creating sustained plasma channels that stall armature separation at sub-millimeter clearances.
+            </p>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-cyan-400 font-mono-code">WHY OTHERS MISSED THIS:</div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Facility engineers deploy sluggish motorized circuit breakers with 35 ms trip latencies that allow plasma arcs to weld contacts closed before mechanical springs can even react.
+            </p>
+          </div>
+        </div>
+
+        <!-- Deep Dive 4: Commercial Space -->
+        <div class="hud-card p-4 rounded-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-violet-400 font-mono-code uppercase">Commercial LEO Constellations</h4>
+            <span class="text-[10px] text-slate-500 font-mono-code">$27.9M ARR</span>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-slate-400 font-mono-code">PHYSICS IN 1 SENTENCE:</div>
+            <p class="text-xs text-slate-300 mt-0.5">
+              In vacuum, absence of atmospheric gas quenching prevents natural arc cooling, causing low-current eclipse switching events to permanently cold-weld array hinges.
+            </p>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-cyan-400 font-mono-code">WHY OTHERS MISSED THIS:</div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Satellite builders simply add redundant 3x heavy relays—bloating launch mass and launch costs by tens of millions of dollars instead of employing intelligent firmware sentries.
+            </p>
+          </div>
+        </div>
+
+        <!-- Deep Dive 5: Heavy Autonomous Mining -->
+        <div class="hud-card p-4 rounded-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-rose-400 font-mono-code uppercase">Autonomous Mining Haulers</h4>
+            <span class="text-[10px] text-slate-500 font-mono-code">$20.0M ARR</span>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-slate-400 font-mono-code">PHYSICS IN 1 SENTENCE:</div>
+            <p class="text-xs text-slate-300 mt-0.5">
+              Extreme mechanical vibration coupled with dynamic regenerative braking current produces intermittent micro-bounces that spot-weld traction contactors in open pits.
+            </p>
+          </div>
+          <div>
+            <div class="text-[10px] font-bold text-cyan-400 font-mono-code">WHY OTHERS MISSED THIS:</div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Mines rely on rigid scheduled preventive maintenance, replacing expensive contactors every 60 days even when completely healthy, while suffering unscheduled $40,000/hr vehicle stalls.
+            </p>
+          </div>
+        </div>
+
+        <!-- Deep Dive 6: Executive Synthesis & Call to Action -->
+        <div class="hud-card p-4 rounded-xl space-y-3 border-cyan-500/30 bg-space-900/60 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-cyan-400 font-mono-code uppercase">Investor &amp; Enterprise Summary</h4>
+              <span class="text-[10px] text-emerald-400 font-mono-code">ROI: 840%</span>
+            </div>
+            <p class="text-xs text-slate-200 mt-2 font-semibold">
+              "Turning passive sacrificial mechanical relays into zero-sensor, self-healing cyber-physical power routing nodes."
+            </p>
+            <p class="text-[11px] text-slate-400 mt-1">
+              By monitoring coil reluctance dynamics already present in every solenoid, MagSwitch prevents contact replacement downtime with zero additional moving parts.
+            </p>
+          </div>
+          
+          <div class="pt-3 border-t border-slate-800">
+            <a href="mailto:support@rfwavecode.com" class="w-full py-2 px-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-bold font-mono-code text-xs flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="mail" class="w-3.5 h-3.5"></i> Inquire for Commercial Licensing
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Global Footer -->
+  <footer class="border-t border-slate-800 bg-space-950 py-4 px-4 sm:px-8 text-xs font-mono-code text-slate-500 flex flex-wrap justify-between items-center gap-4">
+    <div class="flex items-center space-x-2">
+      <span class="text-cyan-400 font-bold">MagSwitch SENTRY</span>
+      <span>&copy; 2026 Deep-Tech Aerospace Solutions</span>
+      <span>&bull; NASA SBIR/STTR Topic Z1.04</span>
+    </div>
+    <div class="flex items-center space-x-4">
+      <span>Contact: <a href="mailto:support@rfwavecode.com" class="text-slate-400 hover:text-cyan-400 underline">support@rfwavecode.com</a></span>
+      <span class="text-emerald-500 font-semibold">ALL SENTRY NODES HEALTHY</span>
+    </div>
+  </footer>
+
+  <!-- ================================================================= -->
+  <!-- JAVASCRIPT APPLICATION CORE (STRICT SINGLE-FILE IMPLEMENTATION)   -->
+  <!-- ================================================================= -->
+  <script>
+    // -------------------------------------------------------------
+    // 1. Tab Switching & DOM Integrity Architecture
+    // -------------------------------------------------------------
+    const tabMapping = {
+      'sim': { viewId: 'viewSim', btnId: 'tabBtnSim' },
+      'physics': { viewId: 'viewPhysics', btnId: 'tabBtnPhysics' },
+      'proposal': { viewId: 'viewProposal', btnId: 'tabBtnProposal' },
+      'arr': { viewId: 'viewARR', btnId: 'tabBtnARR' }
+    };
+
+    function switchTab(activeKey) {
+      Object.keys(tabMapping).forEach(key => {
+        const view = document.getElementById(tabMapping[key].viewId);
+        const btn = document.getElementById(tabMapping[key].btnId);
+        if (!view || !btn) return;
+
+        if (key === activeKey) {
+          view.classList.remove('hidden');
+          btn.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm";
+        } else {
+          view.classList.add('hidden');
+          btn.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-400 hover:text-slate-200 transition-all flex items-center space-x-2 border border-transparent";
+        }
+      });
+
+      // Ensure MathJax renders formulas whenever a tab opens
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch(err => console.debug('MathJax error:', err));
+      }
+
+      // Resize canvas if switching back to simulation
+      if (activeKey === 'sim') {
+        setTimeout(() => {
+          resizeCanvas();
+        }, 30);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 2. Simulation State & Dynamic Parameters
+    // -------------------------------------------------------------
+    const simState = {
+      // Physical Coordinates & Reluctance
+      contactGap: 0.0,       // mm (0 = closed, 3.5 = fully open)
+      targetGap: 0.0,        // commanded position
+      velocity: 0.0,         // mm/ms
+      force: 42.0,           // Newtons contact force
+      inductance: 120.0,     // mH coil inductance
+      nominalInductanceClosed: 120.0,
+      nominalInductanceOpen: 24.0,
+
+      // State Flags
+      isClosed: true,
+      isTripping: false,
+      isWelded: false,
+      autonomousEnabled: true,
+      pulseActive: false,
+      pulseIntensity: 0.0,
+      transitMicroseconds: 0.0,
+      weldMetric: 0.02,
+
+      // User Configurable Parameters
+      busCurrent: 180,       // Amperes
+      springForce: 45,       // N
+      capEnergy: 180,        // uF
+
+      // Particles / Arcs for Canvas Visualizer
+      plasmaParticles: [],
+      arcFlashes: []
+    };
+
+    // -------------------------------------------------------------
+    // 3. Canvas Animation & Cross-Section Hardware Visualizer
+    // -------------------------------------------------------------
+    const canvas = document.getElementById('actuatorCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      if (!canvas) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const w = rect.width || 600;
+      const h = rect.height || 280;
+
+      canvas.width = w * window.devicePixelRatio;
+      canvas.height = h * window.devicePixelRatio;
+      ctx.resetTransform();
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // Canvas particle engine
+    function createPlasmaParticle(x, y, color) {
+      return {
+        x: x + (Math.random() - 0.5) * 8,
+        y: y + (Math.random() - 0.5) * 8,
+        vx: (Math.random() - 0.5) * 3,
+        vy: (Math.random() - 0.5) * 3 - 0.5,
+        life: 1.0,
+        decay: 0.04 + Math.random() * 0.05,
+        size: 1.5 + Math.random() * 2.5,
+        color: color || '#22d3ee'
+      };
+    }
+
+    function renderCanvas() {
+      const w = canvas.width / window.devicePixelRatio;
+      const h = canvas.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      // Center baseline coordinates
+      const cy = h / 2;
+      const cx = w / 2;
+
+      // 1. Draw Solenoid Core & Stator Housing
+      ctx.fillStyle = '#0a101d';
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2;
+      
+      // Fixed Stator Pole (Right side)
+      const statorX = cx + 80;
+      ctx.fillRect(statorX, cy - 60, 90, 120);
+      ctx.strokeRect(statorX, cy - 60, 90, 120);
+
+      // Stator Core Label
+      ctx.fillStyle = '#475569';
+      ctx.font = '10px "JetBrains Mono"';
+      ctx.fillText('CORE STATOR', statorX + 12, cy - 68);
+
+      // Coil Windings around Stator
+      for (let i = 0; i < 6; i++) {
+        const wy = cy - 48 + (i * 18);
+        ctx.fillStyle = '#b45309'; // Copper wire
+        ctx.beginPath();
+        ctx.roundRect(statorX - 10, wy, 16, 12, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.roundRect(statorX + 84, wy, 16, 12, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.stroke();
+      }
+
+      // Magnetic Flux Lines in Gap (Active when energized or during pulse)
+      if (simState.isClosed || simState.pulseActive) {
+        ctx.save();
+        ctx.strokeStyle = simState.pulseActive ? 'rgba(245, 158, 11, 0.45)' : 'rgba(34, 211, 238, 0.25)';
+        ctx.lineWidth = simState.pulseActive ? 3 : 1;
+        ctx.setLineDash([4, 4]);
+        for (let offset = -40; offset <= 40; offset += 15) {
+          ctx.beginPath();
+          ctx.moveTo(statorX - 60, cy + offset);
+          ctx.lineTo(statorX + 20, cy + offset);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 2. Moving Armature & Contacts (Left side)
+      // Visual gap scale: 0mm -> 0px, 3.5mm -> 75px
+      const visualGap = (simState.contactGap / 3.5) * 75;
+      const armatureX = cx - 40 - visualGap;
+
+      // Armature Steel Plunger
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(armatureX - 80, cy - 45, 80, 90);
+      ctx.strokeRect(armatureX - 80, cy - 45, 80, 90);
+
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('ARMATURE', armatureX - 70, cy - 52);
+
+      // Mechanical Opening Spring (Behind Armature)
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const springStartX = armatureX - 80;
+      const springEndX = armatureX - 140;
+      ctx.moveTo(springStartX, cy);
+      const coils = 6;
+      for (let i = 0; i < coils; i++) {
+        const seg = (springEndX - springStartX) / coils;
+        const px = springStartX + (i * seg);
+        const py = cy + ((i % 2 === 0 ? 1 : -1) * 14);
+        ctx.lineTo(px, py);
+      }
+      ctx.lineTo(springEndX, cy);
+      ctx.stroke();
+      ctx.restore();
+
+      // Fixed Mechanical Wall for Spring Base
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(armatureX - 150, cy - 40, 10, 80);
+
+      // 3. Electrical Contact Pads (Ag-SnO2)
+      const contactWidth = 14;
+      const contactHeight = 32;
+
+      // Armature Moving Contact
+      ctx.fillStyle = '#e2e8f0'; // Silver
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 2;
+      ctx.fillRect(armatureX, cy - (contactHeight / 2), contactWidth, contactHeight);
+      ctx.strokeRect(armatureX, cy - (contactHeight / 2), contactWidth, contactHeight);
+
+      // Stationary Mating Contact
+      const fixedContactX = cx - 20;
+      ctx.fillStyle = '#e2e8f0';
+      ctx.strokeStyle = '#06b6d4';
+      ctx.fillRect(fixedContactX, cy - (contactHeight / 2), contactWidth, contactHeight);
+      ctx.strokeRect(fixedContactX, cy - (contactHeight / 2), contactWidth, contactHeight);
+
+      // Current Bus Connection Cables
+      ctx.strokeStyle = '#ef4444'; // Heavy DC Red
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(fixedContactX + contactWidth, cy);
+      ctx.lineTo(fixedContactX + 70, cy);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(armatureX - 10, cy);
+      ctx.lineTo(armatureX - 40, cy + 30);
+      ctx.stroke();
+
+      // 4. Physical Gap & Micro-Weld / Arc Visuals
+      const actualGapPx = fixedContactX - (armatureX + contactWidth);
+
+      if (simState.isWelded && actualGapPx < 14) {
+        // Draw Molten Metal Bridge (Glowing Red/Orange neck)
+        ctx.save();
+        ctx.fillStyle = '#f43f5e';
+        ctx.shadowColor = '#f43f5e';
+        ctx.shadowBlur = 12;
+
+        ctx.beginPath();
+        const midX = (armatureX + contactWidth + fixedContactX) / 2;
+        ctx.moveTo(armatureX + contactWidth, cy - 6);
+        ctx.quadraticCurveTo(midX, cy, fixedContactX, cy - 6);
+        ctx.lineTo(fixedContactX, cy + 6);
+        ctx.quadraticCurveTo(midX, cy, armatureX + contactWidth, cy + 6);
+        ctx.closePath();
+        ctx.fill();
+
+        // Sparks & Asperity Ejection
+        if (Math.random() < 0.6) {
+          simState.plasmaParticles.push(createPlasmaParticle(midX, cy, '#fb7185'));
+        }
+        ctx.restore();
+      } else if (actualGapPx > 1 && actualGapPx < 45 && simState.isTripping && !simState.isClosed) {
+        // Electrical Breaking Plasma Arc
+        ctx.save();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 15;
+        ctx.lineWidth = 2.5;
+
+        ctx.beginPath();
+        ctx.moveTo(armatureX + contactWidth, cy);
+        let currX = armatureX + contactWidth;
+        while (currX < fixedContactX) {
+          currX += 4 + Math.random() * 4;
+          const arcY = cy + (Math.random() - 0.5) * 16;
+          ctx.lineTo(Math.min(currX, fixedContactX), arcY);
+        }
+        ctx.stroke();
+
+        if (Math.random() < 0.5) {
+          simState.plasmaParticles.push(createPlasmaParticle((armatureX + fixedContactX) / 2, cy, '#67e8f9'));
+        }
+        ctx.restore();
+      }
+
+      // 5. Aux Pulse Shock Blast Wave (When triggered)
+      if (simState.pulseActive) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(251, 191, 36, ${simState.pulseIntensity})`;
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 20;
+
+        ctx.beginPath();
+        ctx.arc(armatureX + contactWidth / 2, cy, 35 * (1.1 - simState.pulseIntensity), 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(statorX - 10, cy, 50 * (1.1 - simState.pulseIntensity), 0, Math.PI * 2);
+        ctx.stroke();
+
+        for (let k = 0; k < 3; k++) {
+          simState.plasmaParticles.push(createPlasmaParticle(armatureX + 10, cy, '#fde047'));
+        }
+        ctx.restore();
+      }
+
+      // 6. Particle Updates & Draw
+      for (let i = simState.plasmaParticles.length - 1; i >= 0; i--) {
+        const p = simState.plasmaParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= p.decay;
+
+        if (p.life <= 0) {
+          simState.plasmaParticles.splice(i, 1);
+          continue;
+        }
+
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+      }
+
+      // Update text readout on canvas
+      document.getElementById('canvasGapReadout').innerText = simState.contactGap.toFixed(2) + ' mm';
+    }
+
+    // -------------------------------------------------------------
+    // 4. Chart.js Graphs Setup (Phase-Space & Time-Series)
+    // -------------------------------------------------------------
+    let phaseSpaceChart, timeSeriesLChart, timeSeriesFChart;
+
+    // Generate Theoretical Baseline Nominal Corridor Points (Force vs Inductance)
+    function generateNominalCurve() {
+      const data = [];
+      // Nominal opening: Force goes 45 -> 0 N as gap goes 0 -> 3.5mm
+      // Inductance goes 120 -> 24 mH
+      for (let f = 45; f >= 0; f -= 2) {
+        const norm = (f / 45); // 1 = closed, 0 = open
+        const l = 24 + (120 - 24) * Math.pow(norm, 1.4);
+        data.push({ x: f, y: l });
+      }
+      return data;
+    }
+
+    function initCharts() {
+      // 1. Phase-Space Chart: X = Force (N), Y = Inductance (mH)
+      const ctxPhase = document.getElementById('phaseSpaceChart').getContext('2d');
+      phaseSpaceChart = new Chart(ctxPhase, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Nominal Trip Corridor',
+              data: generateNominalCurve(),
+              showLine: true,
+              borderColor: '#06b6d4',
+              borderWidth: 2,
+              pointRadius: 0,
+              borderDash: [4, 4],
+              tension: 0.2
+            },
+            {
+              label: 'Weld Stall Hazard Zone',
+              data: [
+                { x: 38, y: 125 },
+                { x: 15, y: 125 },
+                { x: 15, y: 95 },
+                { x: 38, y: 95 }
+              ],
+              showLine: true,
+              borderColor: 'rgba(244, 63, 94, 0.8)',
+              backgroundColor: 'rgba(244, 63, 94, 0.15)',
+              borderDash: [5, 5],
+              pointRadius: 0,
+              fill: true
+            },
+            {
+              label: 'Active System Trajectory',
+              data: [{ x: 42.0, y: 120.0 }],
+              showLine: true,
+              borderColor: '#a855f7',
+              backgroundColor: '#c084fc',
+              borderWidth: 2.5,
+              pointRadius: (ctx) => (ctx.dataIndex === ctx.dataset.data.length - 1 ? 6 : 2),
+              pointHoverRadius: 8
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: {
+              title: { display: true, text: 'Opening Contact Force F (N)', color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } },
+              grid: { color: '#1e293b' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+              min: 0,
+              max: 50,
+              reverse: true // As contacts open, force decreases to the right or left
+            },
+            y: {
+              title: { display: true, text: 'Coil Inductance L (mH)', color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } },
+              grid: { color: '#1e293b' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+              min: 15,
+              max: 135
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { boxWidth: 10, color: '#cbd5e1', font: { family: 'Inter', size: 10 } }
+            }
+          }
+        }
+      });
+
+      // 2. Time-Series Inductance Chart
+      const ctxL = document.getElementById('timeSeriesLChart').getContext('2d');
+      timeSeriesLChart = new Chart(ctxL, {
+        type: 'line',
+        data: {
+          labels: Array(30).fill(''),
+          datasets: [{
+            data: Array(30).fill(120),
+            borderColor: '#a855f7',
+            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+            fill: true,
+            borderWidth: 2,
+            tension: 0.3,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: {
+              grid: { color: '#1e293b' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+              min: 15,
+              max: 130
+            }
+          }
+        }
+      });
+
+      // 3. Time-Series Force Chart
+      const ctxF = document.getElementById('timeSeriesFChart').getContext('2d');
+      timeSeriesFChart = new Chart(ctxF, {
+        type: 'line',
+        data: {
+          labels: Array(30).fill(''),
+          datasets: [{
+            data: Array(30).fill(42),
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+            fill: true,
+            borderWidth: 2,
+            tension: 0.3,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: {
+              grid: { color: '#1e293b' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+              min: 0,
+              max: 60
+            }
+          }
+        }
+      });
+    }
+
+    // -------------------------------------------------------------
+    // 5. Physics Engine Simulation Tick (40ms Loop)
+    // -------------------------------------------------------------
+    let tickCount = 0;
+    const historyTrajectory = [{ x: 42.0, y: 120.0 }];
+
+    function simulationStep() {
+      tickCount++;
+
+      // Physics dynamics depending on active command
+      if (simState.isTripping) {
+        simState.transitMicroseconds += 40; // Simulated microsecond time clock
+
+        if (simState.isWelded) {
+          // Stalled by micro-weld! Force decreases somewhat as spring stretches,
+          // but gap is trapped at ~0.08 mm, preventing inductive drop!
+          simState.contactGap = Math.min(0.12, simState.contactGap + 0.01);
+          simState.force = Math.max(18.0, simState.force - 0.5);
+          
+          // Inductance remains virtually locked high
+          simState.inductance = 114.0 + (Math.random() - 0.5) * 1.5;
+          simState.weldMetric = Math.min(1.0, simState.weldMetric + 0.08);
+
+          // Update Status HUD
+          document.getElementById('systemStateText').innerText = 'WELD_STALL_DETECTED';
+          document.getElementById('systemStateText').className = 'text-rose-400 font-bold ml-1.5 tracking-wider animate-pulse';
+          document.getElementById('statusIndicatorCircle').className = 'w-3 h-3 rounded-full bg-rose-500 animate-ping';
+          document.getElementById('weldBridgeBadge').classList.remove('hidden');
+
+          // Autonomous Sentry Inversion Check
+          if (simState.autonomousEnabled && simState.transitMicroseconds >= 120 && !simState.pulseActive) {
+            // Sentry fires auxiliary capacitor discharge pulse!
+            executeAuxiliaryPulse();
+          }
+
+        } else {
+          // Nominal or Post-Pulse Opening Transit
+          const springAcc = (simState.springForce / 0.15) * 0.0004; // mm/ms^2
+          simState.velocity += springAcc;
+          simState.contactGap += simState.velocity;
+
+          if (simState.contactGap >= 3.5) {
+            simState.contactGap = 3.5;
+            simState.velocity = 0;
+            simState.isTripping = false;
+            simState.isClosed = false;
+
+            document.getElementById('systemStateText').innerText = 'GALVANIC_ISOLATED';
+            document.getElementById('systemStateText').className = 'text-cyan-400 font-bold ml-1.5 tracking-wider';
+            document.getElementById('statusIndicatorCircle').className = 'w-3 h-3 rounded-full bg-cyan-400';
+          }
+
+          // Force decays to 0 at full open
+          simState.force = Math.max(0, simState.springForce * (1 - simState.contactGap / 3.5));
+
+          // Inductance drops inversely with air reluctance
+          const gapNorm = simState.contactGap / 3.5;
+          simState.inductance = simState.nominalInductanceOpen + 
+            (simState.nominalInductanceClosed - simState.nominalInductanceOpen) * Math.pow(1 - gapNorm, 1.4);
+
+          simState.weldMetric = Math.max(0.01, simState.weldMetric - 0.04);
+        }
+
+      } else if (simState.isClosed) {
+        // Holding nominal closed contact
+        simState.contactGap = 0.0;
+        simState.velocity = 0.0;
+        simState.force = simState.springForce * 0.95;
+        simState.inductance = simState.nominalInductanceClosed + (Math.random() - 0.5) * 0.3;
+        simState.weldMetric = 0.02;
+        simState.transitMicroseconds = 0.0;
+
+        document.getElementById('systemStateText').innerText = 'NOMINAL_HOLDING';
+        document.getElementById('systemStateText').className = 'text-emerald-400 font-bold ml-1.5 tracking-wider';
+        document.getElementById('statusIndicatorCircle').className = 'w-3 h-3 rounded-full bg-emerald-500';
+        document.getElementById('weldBridgeBadge').classList.add('hidden');
+      }
+
+      // Handle Aux Pulse Decay
+      if (simState.pulseActive) {
+        simState.pulseIntensity -= 0.12;
+        if (simState.pulseIntensity <= 0) {
+          simState.pulseActive = false;
+          document.getElementById('pulseFiredBadge').classList.add('hidden');
+        }
+      }
+
+      // Record trajectory history for Phase-Space scatter plot
+      if (tickCount % 2 === 0) {
+        historyTrajectory.push({ x: simState.force, y: simState.inductance });
+        if (historyTrajectory.length > 25) {
+          historyTrajectory.shift();
+        }
+
+        // Update telemetry readouts in DOM
+        document.getElementById('telemetryForce').innerText = simState.force.toFixed(1) + ' N';
+        document.getElementById('telemetryInductance').innerText = simState.inductance.toFixed(1) + ' mH';
+        document.getElementById('telemetryGap').innerText = simState.contactGap.toFixed(2) + ' mm';
+        document.getElementById('telemetryTransitTime').innerText = simState.transitMicroseconds.toFixed(0) + ' \u03BCs';
+
+        document.getElementById('liveFValue').innerText = simState.force.toFixed(1) + ' N';
+        document.getElementById('liveLValue').innerText = simState.inductance.toFixed(1) + ' mH';
+
+        const grad = simState.force > 0.5 ? ((120 - simState.inductance) / (45 - simState.force)).toFixed(2) : '0.00';
+        document.getElementById('gradReadout').innerText = (grad > 0 ? '+' : '') + grad + ' mH/N';
+
+        const weldLabel = simState.weldMetric > 0.6 ? 'CRITICAL_TRIPPED' : (simState.weldMetric > 0.25 ? 'WARNING' : 'Nominal');
+        document.getElementById('weldMetricReadout').innerText = `${simState.weldMetric.toFixed(2)} (${weldLabel})`;
+        document.getElementById('weldMetricReadout').className = simState.weldMetric > 0.6 ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold';
+      }
+
+      // Update Chart.js (Throttled every 3 ticks)
+      if (tickCount % 3 === 0 && phaseSpaceChart) {
+        phaseSpaceChart.data.datasets[2].data = [...historyTrajectory];
+        phaseSpaceChart.update();
+
+        // Update Line Charts
+        timeSeriesLChart.data.datasets[0].data.push(simState.inductance);
+        timeSeriesLChart.data.datasets[0].data.shift();
+        timeSeriesLChart.update();
+
+        timeSeriesFChart.data.datasets[0].data.push(simState.force);
+        timeSeriesFChart.data.datasets[0].data.shift();
+        timeSeriesFChart.update();
+      }
+
+      // Draw Hardware Canvas
+      renderCanvas();
+    }
+
+    // -------------------------------------------------------------
+    // 6. User Control Interactivity & Fault Injection Actions
+    // -------------------------------------------------------------
+    function triggerContactOpen() {
+      simState.isClosed = false;
+      simState.isTripping = true;
+      simState.transitMicroseconds = 0;
+      historyTrajectory.length = 0;
+    }
+
+    function injectWeldFault() {
+      simState.isClosed = false;
+      simState.isTripping = true;
+      simState.isWelded = true;
+      simState.transitMicroseconds = 0;
+      historyTrajectory.length = 0;
+    }
+
+    function executeAuxiliaryPulse() {
+      simState.pulseActive = true;
+      simState.pulseIntensity = 1.0;
+      simState.isWelded = false; // Mechanically blasts through molten bridge!
+      simState.velocity += 1.8;  // High dynamic impulse kick
+
+      document.getElementById('pulseFiredBadge').classList.remove('hidden');
+
+      // Audio-visual feedback
+      console.log('[MagSwitch SENTRY]: Auxiliary counter-EMF pulse fired. Contact weld severed.');
+    }
+
+    function fireAuxPulserManual() {
+      executeAuxiliaryPulse();
+    }
+
+    function resetSimulation() {
+      simState.isClosed = true;
+      simState.isTripping = false;
+      simState.isWelded = false;
+      simState.contactGap = 0.0;
+      simState.velocity = 0.0;
+      simState.force = simState.springForce * 0.95;
+      simState.inductance = simState.nominalInductanceClosed;
+      simState.transitMicroseconds = 0;
+      simState.weldMetric = 0.02;
+      historyTrajectory.length = 0;
+      historyTrajectory.push({ x: simState.force, y: simState.inductance });
+    }
+
+    function toggleAutonomous() {
+      simState.autonomousEnabled = !simState.autonomousEnabled;
+      const btn = document.getElementById('toggleAutonomousBtn');
+      if (simState.autonomousEnabled) {
+        btn.innerText = 'ENABLED';
+        btn.className = 'px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold';
+      } else {
+        btn.innerText = 'OVERRIDDEN';
+        btn.className = 'px-2.5 py-1 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] font-bold';
+      }
+    }
+
+    function updateSimulationParams() {
+      const cur = parseInt(document.getElementById('sliderCurrent').value);
+      const spr = parseInt(document.getElementById('sliderSpring').value);
+      const cap = parseInt(document.getElementById('sliderCap').value);
+
+      simState.busCurrent = cur;
+      simState.springForce = spr;
+      simState.capEnergy = cap;
+
+      document.getElementById('sliderCurrentVal').innerText = `${cur} A`;
+      document.getElementById('sliderSpringVal').innerText = `${spr} N`;
+      document.getElementById('sliderCapVal').innerText = `${cap} \u03BCF / 450V`;
+
+      // Update calculated weld probability
+      // P_weld increases with higher current, lower spring pre-load
+      const pWeld = Math.min(88, Math.max(3, (cur * 0.28) - (spr * 0.45))).toFixed(1);
+      document.getElementById('weldProbReadout').innerText = `${pWeld}%`;
+    }
+
+    // -------------------------------------------------------------
+    // 7. Initialization Lifecycle
+    // -------------------------------------------------------------
+    window.onload = function () {
+      // 1. Initialize Icons
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+
+      // 2. Initialize Canvas & High DPI Scale
+      resizeCanvas();
+
+      // 3. Initialize Chart.js
+      initCharts();
+
+      // 4. Start Physics & Telemetry Loop (25 Hz / 40ms)
+      setInterval(simulationStep, 40);
+
+      // 5. Typeset formulas once on launch
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch(err => console.debug('MathJax startup error:', err));
+      }
+    };
+  </script>
+</body>
+</html>
